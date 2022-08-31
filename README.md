@@ -1,5 +1,7 @@
 # react-native-sourcepoint-cmp
+
 SourcePoint CMP for React Native
+
 ## Installation
 
 ```sh
