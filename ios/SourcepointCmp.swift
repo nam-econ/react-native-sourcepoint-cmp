@@ -2,25 +2,73 @@ import Foundation
 import ConsentViewController
 
 @objc(SourcepointCmp)
-class SourcepointCmp: NSObject {
+@objcMembers class SourcepointCmp: RCTEventEmitter {
+    @objc public static var shared: SourcepointCmp?
 
-    lazy var consentManager: SPConsentManager = { SPConsentManager(
-        accountId: 1,
-        propertyName: try! SPPropertyName("1"),
-        campaignsEnv: .Public,
-        campaigns: SPCampaigns(
-            gdpr: SPCampaign()
-        ),
-        delegate: self
-    )}()
+    var consentManager: SPConsentManager?
 
-    @objc(init)
     override init() {
         super.init()
+        SourcepointCmp.shared = self
     }
 
-  @objc(multiply:withB:withResolver:withRejecter:)
-  func multiply(a: Float, b: Float, resolve:RCTPromiseResolveBlock,reject:RCTPromiseRejectBlock) -> Void {
-    resolve(a*b)
-  }
+    open override func supportedEvents() -> [String] {
+        ["onSPFinished", "onAction"]
+    }
+
+    func getUserData(_ resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
+        resolve(consentManager?.userData.toDictionary() ?? [:])
+    }
+
+    func build(_ accountId: Int, propertyId: Int, propertyName: String) {
+        SourcepointCmp.shared?.consentManager = SPConsentManager(
+            accountId: accountId,
+            propertyName: try! SPPropertyName(propertyName),
+            campaigns: SPCampaigns(gdpr: SPCampaign(), ccpa: SPCampaign()),
+            delegate: self
+        )
+    }
+
+    func loadMessage() {
+        consentManager?.loadMessage()
+    }
+
+    func clearLocalData() {
+        SPConsentManager.clearAllData()
+    }
+
+    func loadGDPRPrivacyManager(_ pmId: String) {
+        consentManager?.loadGDPRPrivacyManager(withId: pmId)
+    }
+
+    func loadCCPAPrivacyManager(_ pmId: String) {
+        consentManager?.loadCCPAPrivacyManager(withId: pmId)
+    }
+}
+
+extension SourcepointCmp: SPDelegate {
+    weak var rootViewController: UIViewController? {
+        UIApplication.shared.delegate?.window??.rootViewController
+    }
+
+    func onAction(_ action: SPAction, from controller: UIViewController) {
+        SourcepointCmp.shared?.sendEvent(withName: "onAction", body: action.type.description)
+    }
+
+    func onSPUIReady(_ controller: UIViewController) {
+        controller.modalPresentationStyle = .overFullScreen
+        rootViewController?.present(controller, animated: true)
+    }
+
+    func onSPUIFinished(_ controller: UIViewController) {
+        rootViewController?.dismiss(animated: true)
+    }
+
+    func onSPFinished(userData: SPUserData) {
+        SourcepointCmp.shared?.sendEvent(withName: "onSPFinished", body: [])
+    }
+
+    func onError(error: SPError) {
+        print("Something went wrong", error)
+    }
 }
