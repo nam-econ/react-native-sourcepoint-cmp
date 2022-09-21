@@ -1,31 +1,58 @@
-import * as React from 'react';
+import React from 'react'
+import { SafeAreaView, View, Button, Text, ScrollView } from 'react-native'
+import { SPConsentManager } from "react-native-sourcepoint-cmp";
 
-import { StyleSheet, View, Text } from 'react-native';
-import { multiply } from 'react-native-sourcepoint-cmp';
+const config = {
+  accountId: 22,
+  propertyId: 999,
+  propertyName: "mobile.multicampaign.demo",
+  gdprPMId: "488393",
+  ccpaPMId: "509688"
+}
+
+const consentManager = new SPConsentManager(
+  config.accountId,
+  config.propertyId,
+  config.propertyName
+);
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+  const [userData, setUserData] = React.useState<{}>({});
 
   React.useEffect(() => {
-    multiply(3, 7).then(setResult);
+    // it's important to wrap `onFinished` and `loadMessage` in a
+    // useEffect hook so they only get called once.
+    consentManager.onFinished(() => {
+      consentManager.getUserData().then(setUserData);
+    })
+    consentManager.loadMessage();
+    consentManager.getUserData().then(setUserData);
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Text>Result: {result}</Text>
-    </View>
+    <SafeAreaView>
+      <View>
+        <Button title="Load Messages" onPress={() => {
+          consentManager.loadMessage();
+        }}/>
+        <Button title="Load GDPR PM" onPress={() => {
+          consentManager.loadGDPRPrivacyManager(config.gdprPMId);
+        }}/>
+        <Button title="Load CCPA PM" onPress={() => {
+          consentManager.loadCCPAPrivacyManager(config.ccpaPMId);
+        }}/>
+        <Button title="Clear All" onPress={() => {
+          consentManager.clearLocalData()
+          consentManager.getUserData().then(setUserData)
+        }}/>
+      </View>
+      <ScrollView>
+        <ScrollView horizontal={true}>
+          <Text>
+            {JSON.stringify(userData, undefined, ' ')}
+          </Text>
+        </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  box: {
-    width: 60,
-    height: 60,
-    marginVertical: 20,
-  },
-});
